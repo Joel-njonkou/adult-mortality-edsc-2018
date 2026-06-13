@@ -292,7 +292,7 @@ with st.sidebar:
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE : RÉSULTATS ML
 # ──────────────────────────────────────────────────────────────────────────────
-elif menu == "🤖 Résultats ML":
+if menu == "🤖 Résultats ML":
     st.markdown("""
     <div class="page-header">
         <h1>🤖 Résultats Machine Learning</h1>
