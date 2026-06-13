@@ -1,54 +1,23 @@
+# ==============================================================================
+#   APPLICATION STREAMLIT — MORTALITÉ ADULTE · EDS CAMEROUN 2018
+#   Auteur : NJONKOU TONDA JOEL — Master 1 Data Science — Juin 2026
+#   Version : 2.0 — Pipeline ML complet (modele_mortalite_complet.joblib)
+# ==============================================================================
+
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import joblib
+from pathlib import Path
+import warnings
+warnings.filterwarnings("ignore")
 
-# Injection du CSS personnalisé
-st.markdown("""
-<style>
-    /* Cibler les options du radio button dans la barre latérale */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label {
-        background-color: #eff6ff;
-        padding: 1rem;
-        border-radius: 12px;
-        border-left: 4px solid transparent;
-        color: #475569;
-        margin-bottom: 0.8rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    /* 1. Cacher les cercles des boutons radio */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {
-        display: none;
-    }
-
-    /* 2. Style au survol de la souris */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:hover {
-        background-color: #dbeafe;
-        border-left: 4px solid #93c5fd;
-    }
-
-    /* 3. Style de la page active */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label:has(input:checked) {
-        background-color: #bfdbfe;
-        border-left: 4px solid #3b82f6;
-        font-weight: 600;
-    }
-
-    /* Ajuster la police à l'intérieur */
-    [data-testid="stSidebar"] [data-testid="stRadio"] div[role="radiogroup"] > label p {
-        font-size: 0.95rem !important;
-        line-height: 1.7 !important;
-        margin: 0 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────
-# PAGE CONFIG
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# CONFIGURATION DE LA PAGE (DOIT ÊTRE EN PREMIER)
+# ──────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Mortalité Adulte · EDS Cameroun 2018",
     page_icon="💠",
@@ -56,26 +25,27 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ─────────────────────────────────────────────
-# CSS — Thème analytique premium (Clair/Bleu)
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# CSS — THÈME PREMIUM
+# ──────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-/* ========= GLOBAL ========= */
 :root {
-    --bg: #f8fafc;
-    --card: #ffffff;
-    --border: #e2e8f0;
-    --text: #0f172a;
-    --muted: #64748b;
-    --primary: #3b82f6;
-    --primary-light: #eff6ff;
-    --green: #10b981;
-    --orange: #f59e0b;
-    --red: #ef4444;
-    --radius: 16px;
+    --bg:           #f8fafc;
+    --card:         #ffffff;
+    --border:       #e2e8f0;
+    --text:         #0f172a;
+    --muted:        #64748b;
+    --primary:      #3b82f6;
+    --primary-dk:   #1d4ed8;
+    --primary-lt:   #eff6ff;
+    --green:        #10b981;
+    --orange:       #f59e0b;
+    --red:          #ef4444;
+    --purple:       #8b5cf6;
+    --radius:       16px;
 }
 
 html, body, [class*="css"] {
@@ -88,727 +58,817 @@ html, body, [class*="css"] {
 
 .block-container {
     padding-top: 2rem !important;
-    max-width: 1400px;
+    max-width: 1500px;
 }
 
-/* ========= SIDEBAR ========= */
+/* ── SIDEBAR ────────────────────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    border-right: 1px solid var(--border);
+    background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%) !important;
+    border-right: 1px solid #334155;
 }
+[data-testid="stSidebar"] * { color: #e2e8f0 !important; }
 
-.sidebar-header {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    padding: 1.2rem;
-    border-radius: 16px;
-    margin-bottom: 2rem;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
+.sb-header {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    padding: 1.4rem;
+    border-radius: 14px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 24px rgba(99,102,241,0.35);
+    text-align: center;
 }
-
-.sidebar-logo {
-    width: 45px;
-    height: 45px;
-    border-radius: 12px;
-    background: rgba(255,255,255,0.2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
-
-.sidebar-title {
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: white !important;
-    line-height: 1.2;
-}
-
-.sidebar-subtitle {
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.85) !important;
-}
+.sb-logo  { font-size: 2.5rem; margin-bottom: 0.3rem; }
+.sb-title { font-size: 1.1rem; font-weight: 800; color: white !important; }
+.sb-sub   { font-size: 0.78rem; color: rgba(255,255,255,0.75) !important; margin-top: 2px; }
 
 div[role="radiogroup"] > label {
-    background: var(--card) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 12px !important;
-    padding: 0.8rem 1rem !important;
-    margin-bottom: 0.5rem;
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 10px !important;
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0.4rem;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }
-
 div[role="radiogroup"] > label:hover {
-    border-color: var(--primary) !important;
-    background: var(--primary-light) !important;
-    transform: translateX(4px);
+    background: rgba(59,130,246,0.2) !important;
+    border-color: rgba(59,130,246,0.5) !important;
+    transform: translateX(3px);
 }
-
 div[role="radiogroup"] p {
     font-weight: 600 !important;
-    font-size: 0.95rem !important;
-    color: var(--text) !important;
+    font-size: 0.9rem !important;
+    color: #e2e8f0 !important;
 }
 
-.sidebar-footer-card {
-    margin-top: 3rem;
-    background: var(--primary-light);
-    border: 1px dashed #bfdbfe;
-    border-radius: 16px;
-    padding: 1.2rem;
+.sb-stats {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-top: 1.5rem;
 }
 
-.footer-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--muted) !important;
-    margin-bottom: 0.2rem;
-    font-weight: 700;
-}
-
-.footer-value {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text) !important;
-    margin-bottom: 1rem;
-}
-
-.footer-number {
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: var(--primary) !important;
-}
-
-/* ========= COMPOSANTS DASHBOARD ========= */
-.page-title-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.5rem 2rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-}
-
-.page-title {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--text);
-    margin-bottom: 0.2rem;
-}
-
-.mc {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.03);
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.mc:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.06);
-}
-
-.mc-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
-.mc-val { font-size: 2rem; font-weight: 800; color: var(--text); line-height: 1.1; }
-.mc-lbl { color: var(--muted); font-size: 0.85rem; font-weight: 600; margin-top: 0.4rem; text-transform: uppercase; letter-spacing: 0.05em; }
-
-.sh {
-    font-size: 1.2rem;
-    font-weight: 700;
-    margin: 2rem 0 1rem;
-    color: var(--text);
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--primary-light);
-}
-
-/* ========= FORMULAIRES & PREDICTION ========= */
-.fsec {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 1.5rem;
-    margin-bottom: 1.2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-}
-
-.fsec-title {
-    font-weight: 700;
-    color: var(--primary);
-    margin-bottom: 1rem;
-    font-size: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.stButton button, [data-testid="stFormSubmitButton"] button {
-    background: var(--primary) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 0.8rem 1.5rem !important;
-    font-weight: 700 !important;
-    width: 100%;
-    transition: 0.2s;
-}
-
-.stButton button:hover, [data-testid="stFormSubmitButton"] button:hover {
-    background: #1d4ed8 !important;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3);
-}
-
-.rc {
+/* ── COMPOSANTS CARTES ──────────────────────────────────────────────────── */
+.page-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
     border-radius: 20px;
-    padding: 2.5rem;
-    text-align: center;
-    border: 2px solid;
+    padding: 2rem 2.5rem;
+    margin-bottom: 1.5rem;
+    color: white !important;
+    box-shadow: 0 10px 30px rgba(15,23,42,0.15);
+}
+.page-header h1 { font-size: 2rem; font-weight: 800; color: white !important; margin: 0; }
+.page-header p  { color: rgba(255,255,255,0.7) !important; margin: 0.3rem 0 0; font-size: 1rem; }
+
+.kpi-card {
     background: var(--card);
-    box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+}
+.kpi-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(0,0,0,0.08); }
+.kpi-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+.kpi-val  { font-size: 2.2rem; font-weight: 800; color: var(--text); line-height: 1.1; }
+.kpi-lbl  { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase;
+            letter-spacing: 0.05em; margin-top: 0.4rem; }
+
+.section-title {
+    font-size: 1.15rem; font-weight: 700; color: var(--text);
+    margin: 1.5rem 0 0.8rem;
+    padding-left: 0.8rem;
+    border-left: 3px solid var(--primary);
 }
 
-.rc.low { background: #f0fdf4; border-color: #10b981; }
-.rc.med { background: #fffbeb; border-color: #f59e0b; }
-.rc.high { background: #fef2f2; border-color: #ef4444; }
-.rc-val { font-size: 3.5rem; font-weight: 800; line-height: 1; margin: 1rem 0; }
-.rc.low .rc-val { color: #10b981; }
-.rc.med .rc-val { color: #f59e0b; }
-.rc.high .rc-val { color: #ef4444; }
-.rc-lbl { font-size: 1.2rem; font-weight: 700; color: var(--text); }
-.rc-ico { font-size: 3rem; }
+.chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    margin-bottom: 1rem;
+}
+
+/* ── FORMULAIRE PRÉDICTION ──────────────────────────────────────────────── */
+.stButton button {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dk)) !important;
+    color: white !important; border: none !important; border-radius: 12px !important;
+    padding: 0.9rem 2rem !important; font-weight: 700 !important; width: 100%;
+    font-size: 1rem !important; transition: all 0.2s !important;
+    box-shadow: 0 4px 14px rgba(59,130,246,0.3) !important;
+}
+.stButton button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59,130,246,0.4) !important; }
+
+/* ── RÉSULTAT ───────────────────────────────────────────────────────────── */
+.result-card {
+    border-radius: 20px; padding: 2.5rem; text-align: center;
+    border: 2px solid; background: var(--card); box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+}
+.result-card.low  { background: #f0fdf4; border-color: var(--green); }
+.result-card.med  { background: #fffbeb; border-color: var(--orange); }
+.result-card.high { background: #fef2f2; border-color: var(--red); }
+.result-val { font-size: 4rem; font-weight: 800; line-height: 1; margin: 0.8rem 0; }
+.result-card.low  .result-val { color: var(--green); }
+.result-card.med  .result-val { color: var(--orange); }
+.result-card.high .result-val { color: var(--red); }
+.result-lbl { font-size: 1.2rem; font-weight: 700; color: var(--text); }
+
+.model-badge {
+    display: inline-block; background: var(--primary-lt); color: var(--primary);
+    border: 1px solid #bfdbfe; border-radius: 999px;
+    padding: 0.3rem 1rem; font-size: 0.85rem; font-weight: 700;
+}
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # LABEL MAPS
-# ─────────────────────────────────────────────
-LABEL_V116 = {
-    10:"Flush toilet", 11:"Flush → égout", 12:"Flush → fosse septique",
-    13:"Flush → latrines", 14:"Flush → ailleurs", 15:"Flush, destination inconnue",
-    20:"Latrines à fosse", 21:"VIP latrine", 22:"Latrines avec dalle",
-    23:"Latrines sans dalle", 30:"Aucune installation", 31:"Brousse/champ",
-    41:"Toilette compostage", 42:"Toilette seau", 43:"Toilette suspendue",
-    96:"Autre", 97:"Non résident"
-}
-LABEL_V113 = {
-    10:"Eau courante", 11:"Robinet dans logement", 12:"Robinet dans cour",
-    13:"Robinet chez voisin", 14:"Borne fontaine", 20:"Puits tubulaire",
-    21:"Forage/puits tubulaire", 30:"Puits creusé", 31:"Puits protégé",
-    32:"Puits non protégé", 40:"Source", 41:"Source protégée",
-    42:"Source non protégée", 43:"Rivière/lac/étang", 51:"Eau de pluie",
-    61:"Camion-citerne", 62:"Charrette", 71:"Eau en bouteille",
-    92:"Eau en sachet", 96:"Autre", 97:"Non résident"
-}
-LABEL_V130 = {1:"Catholique", 2:"Protestant", 3:"Autre Chrétien",
-              4:"Musulman", 5:"Animiste", 7:"Sans religion", 96:"Autre"}
-LABEL_V501 = {0:"Jamais en union", 1:"Marié(e)", 2:"En concubinage",
-              3:"Veuf/Veuve", 4:"Divorcé(e)", 5:"Séparé(e)"}
-LABEL_V024 = {1:"Adamaoua", 2:"Centre (hors Ydé)", 3:"Douala", 4:"Est",
-              5:"Extrême-Nord", 6:"Littoral (hors Dla)", 7:"Nord",
-              8:"Nord-Ouest", 9:"Ouest", 10:"Sud", 11:"Sud-Ouest", 12:"Yaoundé"}
-LABEL_V190 = {1:"Très pauvre", 2:"Pauvre", 3:"Moyen", 4:"Riche", 5:"Très riche"}
-LABEL_V106 = {0:"Aucun", 1:"Primaire", 2:"Secondaire", 3:"Supérieur"}
-LABEL_V463A = {0:"Non", 1:"Oui"}
+# ──────────────────────────────────────────────────────────────────────────────
+LABEL_V190 = {1: "Très pauvre", 2: "Pauvre", 3: "Moyen", 4: "Riche", 5: "Très riche"}
+LABEL_V106 = {0: "Aucun", 1: "Primaire", 2: "Secondaire", 3: "Supérieur"}
+LABEL_V024 = {1: "Adamaoua", 2: "Centre (hors Ydé)", 3: "Douala", 4: "Est",
+              5: "Extrême-Nord", 6: "Littoral (hors Dla)", 7: "Nord",
+              8: "Nord-Ouest", 9: "Ouest", 10: "Sud", 11: "Sud-Ouest", 12: "Yaoundé"}
+LABEL_V025 = {1: "Urbain", 2: "Rural"}
+LABEL_V501 = {0: "Jamais en union", 1: "Marié(e)", 2: "En concubinage",
+              3: "Veuf/Veuve", 4: "Divorcé(e)", 5: "Séparé(e)"}
 
-# ─────────────────────────────────────────────
-# PLOTLY THEME
-# ─────────────────────────────────────────────
+# Maps texte -> texte (pour le formulaire du nouveau modèle)
+SEXE_OPTS     = ["Masculin", "Féminin"]
+MILIEU_OPTS   = ["Urbain", "Rural"]
+EDUC_OPTS     = ["Aucun", "Primaire", "Secondaire", "Supérieur"]
+RICHESSE_OPTS = ["Plus pauvre", "Pauvre", "Moyen", "Riche", "Plus riche"]
+MATRI_OPTS    = ["En union", "Célibataire", "Divorcé", "Veuf", "Jamais en union"]
+REGION_OPTS   = ["Adamaoua", "Centre", "Est", "Extrême-Nord", "Littoral",
+                 "Nord", "Nord-Ouest", "Ouest", "Sud", "Sud-Ouest", "Douala", "Yaoundé"]
+
 PL = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Inter", color="#0f172a", size=12),
-    title_font=dict(family="Inter", size=16, color="#0f172a", weight="bold"),
-    legend=dict(
-        bgcolor="rgba(255,255,255,0.9)",
-        bordercolor="#e2e8f0",
-        borderwidth=1,
-        font=dict(color="#0f172a")
-    ),
+    title_font=dict(family="Inter", size=15, color="#0f172a"),
+    legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#e2e8f0", borderwidth=1),
     margin=dict(l=20, r=20, t=50, b=20),
-    colorway=["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"],
-    xaxis=dict(gridcolor="#f1f5f9", linecolor="#cbd5e1", zerolinecolor="#cbd5e1"),
-    yaxis=dict(gridcolor="#f1f5f9", linecolor="#cbd5e1", zerolinecolor="#cbd5e1")
+    colorway=["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"],
+    xaxis=dict(gridcolor="#f1f5f9", linecolor="#cbd5e1"),
+    yaxis=dict(gridcolor="#f1f5f9", linecolor="#cbd5e1"),
 )
 
-# ─────────────────────────────────────────────
-# DATA
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
+# CHARGEMENT DES ARTEFACTS
+# ──────────────────────────────────────────────────────────────────────────────
 @st.cache_resource
-def load():
-    try:
-        df = pd.read_csv("donnees_propres.csv")
-        m  = joblib.load("meilleur_modele_mortalite.pkl")
-    except FileNotFoundError:
-        df = pd.DataFrame({
-            "age": [30, 45, 22, 50, 60]*200,
-            "mort_adulte": [0, 1, 0, 0, 1]*200,
-            "v190": [1, 2, 3, 4, 5]*200,
-            "v106": [0, 1, 2, 3, 1]*200,
-            "v024": [1, 2, 3, 4, 12]*200,
-            "v501": [1, 0, 1, 2, 3]*200,
-            "v130": [1, 2, 4, 1, 5]*200,
-            "v463a": [0, 1, 0, 0, 1]*200,
-            "v113": [10, 11, 20, 31, 40]*200,
-            "v116": [10, 20, 31, 11, 22]*200
-        })
-        m = None
-    return df, m
+def charger_modele():
+    for path in ["modele_mortalite_complet.joblib"]:
+        if Path(path).exists():
+            return joblib.load(path)
+    return None
 
-df, modele = load()
+@st.cache_data
+def charger_donnees():
+    for path in ["data/processed/donnees_ml_long.csv", "donnees_ml_long.csv"]:
+        if Path(path).exists():
+            df = pd.read_csv(path)
+            df = df.rename(columns={
+                'lbl_region': 'region', 'v024': 'region',
+                'lbl_milieu': 'milieu_residence', 'v025': 'milieu_residence',
+                'lbl_instruction': 'niveau_education', 'v106': 'niveau_education',
+                'lbl_richesse': 'indice_richesse', 'v190': 'indice_richesse',
+                'lbl_matrimonial': 'etat_matrimonial', 'v501': 'etat_matrimonial',
+                'lbl_sexe': 'sexe', 'sexe_fratrie': 'sexe',
+                'age_ref': 'age'
+            })
+            if 'region' in df.columns and df['region'].dtype in ['int64', 'float64']:
+                df['region'] = df['region'].map(LABEL_V024)
+            if 'milieu_residence' in df.columns and df['milieu_residence'].dtype in ['int64', 'float64']:
+                df['milieu_residence'] = df['milieu_residence'].map(LABEL_V025)
+            if 'niveau_education' in df.columns and df['niveau_education'].dtype in ['int64', 'float64']:
+                df['niveau_education'] = df['niveau_education'].map(LABEL_V106)
+            if 'indice_richesse' in df.columns and df['indice_richesse'].dtype in ['int64', 'float64']:
+                df['indice_richesse'] = df['indice_richesse'].map(LABEL_V190)
+            return df
+    # Données synthétiques de démonstration
+    np.random.seed(42)
+    n = 5000
+    return pd.DataFrame({
+        "age": np.random.randint(15, 60, n),
+        "sexe": np.random.choice(["Masculin", "Féminin"], n),
+        "niveau_education": np.random.choice(list(LABEL_V106.values()), n),
+        "indice_richesse": np.random.choice(list(LABEL_V190.values()), n),
+        "region": np.random.choice(REGION_OPTS, n),
+        "milieu_residence": np.random.choice(MILIEU_OPTS, n),
+        "etat_matrimonial": np.random.choice(MATRI_OPTS, n),
+        "mort_adulte": np.random.choice([0, 1], n, p=[0.97, 0.03]),
+    })
 
-# ─────────────────────────────────────────────
+artifacts = charger_modele()
+df = charger_donnees()
+
+pipeline         = artifacts['pipeline']         if artifacts else None
+seuil_optimal    = artifacts['seuil_optimal']    if artifacts else 0.5
+age_moyen_train  = artifacts['age_moyen_train']  if artifacts else 31.0
+
+# ──────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div class="sidebar-header">
-        <div class="sidebar-logo">💠</div>
-        <div>
-            <div class="sidebar-title">MortalitéEDS</div>
-            <div class="sidebar-subtitle">Cameroun EDS 2018</div>
-        </div>
+    <div class="sb-header">
+        <div class="sb-logo">💠</div>
+        <div class="sb-title">MortalitéEDS</div>
+        <div class="sb-sub">EDS Cameroun 2018 · Master 1 Data Science</div>
     </div>
     """, unsafe_allow_html=True)
-
-    st.markdown(
-        """
-        <div style="font-size:0.75rem; font-weight:700; color:#64748b; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.8rem; padding-left:0.5rem;">
-            Navigation Principale
-        </div>
-        """, unsafe_allow_html=True
-    )
 
     menu = st.radio(
         "Navigation",
-        ["📊 Dashboard", "📈 Analyse Univariée", "🔗 Analyse Bivariée", "🔮 Prédiction", "👤 À propos"],
+        ["📊 Dashboard",
+         "📈 Analyse Univariée",
+         "🔗 Analyse Bivariée",
+         "🤖 Résultats ML",
+         "🔮 Prédiction",
+         "👤 À propos"],
         label_visibility="collapsed"
     )
 
-    st.markdown(
-        f"""
-        <div class="sidebar-footer-card">
-            <div class="footer-label">Source de données</div>
-            <div class="footer-value">EDS Cameroun 2018</div>
-            <div class="footer-label">Taille de l'échantillon</div>
-            <div class="footer-number">{len(df):,} <span style="font-size:0.9rem; font-weight:600; color:#64748b;">observations.</span></div>
+    taux   = df["mort_adulte"].mean() * 100 if "mort_adulte" in df.columns else 0
+    n_decs = int(df["mort_adulte"].sum()) if "mort_adulte" in df.columns else 0
+    modele_ok = "✅ Chargé" if pipeline else "⚠️ Non trouvé"
+
+    st.markdown(f"""
+    <div class="sb-stats">
+        <div style="font-size:.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;margin-bottom:.6rem;">
+            Statistiques
         </div>
-        """, unsafe_allow_html=True
-    )
-
-def transformer_input(input_df):
-    """Applique le même regroupement que dans le modèle ML."""
-    df = input_df.copy()
-    # Logique de regroupement v113
-    df['v113_grouped'] = df['v113'].apply(lambda x: 1 if x < 20 else (2 if x < 30 else (3 if x < 40 else (4 if x < 60 else 5))))
-    # Logique de regroupement v116
-    df['v116_grouped'] = df['v116'].apply(lambda x: x // 10)
-    # Suppression des anciennes colonnes pour ne garder que les regroupées
-    return df.drop(columns=['v113', 'v116'])
-
-# ═══════════════════════════════════════════════
-# DASHBOARD
-# ═══════════════════════════════════════════════
-if menu == "📊 Dashboard":
-    st.markdown("""
-    <div class="page-title-card">
-        <div class="page-title">📊 Vue d'ensemble</div>
-        <div class="page-subtitle" style="color: #64748b;">Indicateurs clés · Mortalité adulte · EDS Cameroun 2018</div>
+        <div style="margin-bottom:.5rem;">
+            <div style="font-size:.75rem;color:#94a3b8;">Observations</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#e2e8f0;">{len(df):,}</div>
+        </div>
+        <div style="margin-bottom:.5rem;">
+            <div style="font-size:.75rem;color:#94a3b8;">Taux mortalité</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#ef4444;">{taux:.2f}%</div>
+        </div>
+        <div style="margin-bottom:.5rem;">
+            <div style="font-size:.75rem;color:#94a3b8;">Décès détectés</div>
+            <div style="font-size:1.2rem;font-weight:800;color:#f59e0b;">{n_decs:,}</div>
+        </div>
+        <div>
+            <div style="font-size:.75rem;color:#94a3b8;">Modèle ML</div>
+            <div style="font-size:1rem;font-weight:800;color:#e2e8f0;">{modele_ok}</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    taux = df["mort_adulte"].mean() * 100
-    age_moy = df["age"].mean()
-    n_deces = int(df["mort_adulte"].sum())
+# ──────────────────────────────────────────────────────────────────────────────
+# PAGE : DASHBOARD
+# ──────────────────────────────────────────────────────────────────────────────
+if menu == "📊 Dashboard":
+    st.markdown("""
+    <div class="page-header">
+        <h1>📊 Dashboard — Vue d'ensemble</h1>
+        <p>Indicateurs clés · Mortalité adulte · EDS Cameroun 2018 · Méthode CSS (Obermeyer et al.)</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    age_moy = df["age"].mean() if "age" in df.columns else 0
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f'<div class="mc"><span class="mc-icon">👥</span><div class="mc-val">{len(df):,}</div><div class="mc-lbl">Effectif total</div></div>', unsafe_allow_html=True)
-    c2.markdown(f'<div class="mc"><span class="mc-icon">📉</span><div class="mc-val">{taux:.2f}%</div><div class="mc-lbl">Taux de mortalité</div></div>', unsafe_allow_html=True)
-    c3.markdown(f'<div class="mc"><span class="mc-icon">🎂</span><div class="mc-val">{age_moy:.1f}</div><div class="mc-lbl">Âge moyen (ans)</div></div>', unsafe_allow_html=True)
-    c4.markdown(f'<div class="mc"><span class="mc-icon">💔</span><div class="mc-val">{n_deces:,}</div><div class="mc-lbl">Décès enregistrés</div></div>', unsafe_allow_html=True)
+    cards = [
+        ("👥", f"{len(df):,}", "Effectif total (fratrie)"),
+        ("📉", f"{taux:.2f}%", "Taux de mortalité adulte"),
+        ("🎂", f"{age_moy:.1f} ans", "Âge moyen"),
+        ("💔", f"{n_decs:,}", "Décès adultes détectés"),
+    ]
+    for col, (ico, val, lbl) in zip([c1, c2, c3, c4], cards):
+        col.markdown(f"""
+        <div class="kpi-card">
+            <div class="kpi-icon">{ico}</div>
+            <div class="kpi-val">{val}</div>
+            <div class="kpi-lbl">{lbl}</div>
+        </div>""", unsafe_allow_html=True)
 
+    st.markdown('<div class="section-title">Répartition de la variable cible</div>', unsafe_allow_html=True)
     r1a, r1b = st.columns([3, 2])
+
     with r1a:
-        st.markdown('<div class="sh">📊 Distribution par âge</div>', unsafe_allow_html=True)
-        fig = px.histogram(df, x="age", color="mort_adulte", barmode="overlay", nbins=30,
-                           title="Distribution par âge", color_discrete_map={0:"#3b82f6", 1:"#ef4444"},
-                           labels={"age":"Âge", "mort_adulte":"Décès", "count":"Effectif"})
-        fig.update_layout(**PL, bargap=0.05)
-        fig.update_traces(opacity=0.85)
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        if "age" in df.columns:
+            fig = px.histogram(
+                df, x="age", color="mort_adulte", barmode="overlay", nbins=35,
+                color_discrete_map={0: "#3b82f6", 1: "#ef4444"},
+                labels={"age": "Âge", "mort_adulte": "Décès adulte", "count": "Effectif"},
+                title="Distribution par âge selon le statut de survie"
+            )
+            fig.update_layout(**PL, bargap=0.05)
+            fig.update_traces(opacity=0.8)
+            st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with r1b:
-        st.markdown('<div class="sh">💰 Quintile de richesse</div>', unsafe_allow_html=True)
-        wc = df["v190"].map(LABEL_V190).value_counts().reset_index()
-        wc.columns = ["Quintile", "Effectif"]
-        fig = px.pie(wc, names="Quintile", values="Effectif", hole=0.55, title="Quintile de richesse",
-                     color_discrete_sequence=["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1"])
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        mort_dist = pd.DataFrame({
+            "Statut": ["Vivant", "Décès adulte"],
+            "Effectif": [len(df) - n_decs, n_decs]
+        })
+        fig = px.pie(mort_dist, names="Statut", values="Effectif",
+                     hole=0.6, title="Répartition de la variable cible",
+                     color_discrete_sequence=["#3b82f6", "#ef4444"])
+        fig.update_traces(textinfo="percent+label", textfont_size=12)
         fig.update_layout(**PL)
-        fig.update_traces(textposition="inside", textinfo="percent", textfont=dict(color="white", size=12))
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    r2a, r2b = st.columns([2, 3])
+    r2a, r2b = st.columns(2)
     with r2a:
-        st.markdown('<div class="sh">🎓 Niveau d\'instruction</div>', unsafe_allow_html=True)
-        edu = df["v106"].map(LABEL_V106).value_counts().reset_index()
-        edu.columns = ["Niveau", "Effectif"]
-        fig = px.bar(edu, x="Effectif", y="Niveau", orientation="h", color="Effectif", title="Niveau d\'instruction",
-                     color_continuous_scale=["#bfdbfe", "#2563eb"])
-        fig.update_layout(**PL, coloraxis_showscale=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        if "indice_richesse" in df.columns:
+            rm = df.groupby("indice_richesse")["mort_adulte"].mean().mul(100).round(2).reset_index()
+            rm.columns = ["Quintile de richesse", "Taux (%)"]
+            rm = rm.sort_values("Taux (%)")
+            fig = px.bar(rm, x="Quintile de richesse", y="Taux (%)", color="Taux (%)",
+                         color_continuous_scale=["#10b981", "#f59e0b", "#ef4444"],
+                         title="Taux de mortalité par quintile de richesse")
+            fig.update_layout(**PL, coloraxis_showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with r2b:
-        st.markdown('<div class="sh">🗺️ Mortalité par région</div>', unsafe_allow_html=True)
-        rm = df.groupby("v024")["mort_adulte"].agg(["mean", "count"]).reset_index()
-        rm["region"] = rm["v024"].map(LABEL_V024)
-        rm["taux_%"] = (rm["mean"] * 100).round(2)
-        rm = rm.sort_values("taux_%", ascending=True)
-        fig = px.bar(rm, x="taux_%", y="region", orientation="h", color="taux_%", title="Mortalité par région",
-                     color_continuous_scale=["#10b981", "#f59e0b", "#ef4444"],
-                     labels={"taux_%":"Taux (%)", "region":"Région"})
-        fig.update_layout(**PL, coloraxis_showscale=False)
-        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        if "region" in df.columns:
+            rm = df.groupby("region")["mort_adulte"].mean().mul(100).round(2).reset_index()
+            rm.columns = ["Région", "Taux (%)"]
+            rm = rm.sort_values("Taux (%)", ascending=True)
+            fig = px.bar(rm, x="Taux (%)", y="Région", orientation="h", color="Taux (%)",
+                         color_continuous_scale=["#10b981", "#f59e0b", "#ef4444"],
+                         title="Taux de mortalité par région")
+            fig.update_layout(**PL, coloraxis_showscale=False)
+            st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════
-# ANALYSE UNIVARIÉE
-# ═══════════════════════════════════════════════
+# ──────────────────────────────────────────────────────────────────────────────
+# PAGE : ANALYSE UNIVARIÉE
+# ──────────────────────────────────────────────────────────────────────────────
 elif menu == "📈 Analyse Univariée":
     st.markdown("""
-    <div class="page-title-card">
-        <div class="page-title">📈 Analyse Univariée</div>
-        <div class="page-subtitle" style="color: #64748b;">Distribution de chaque variable</div>
+    <div class="page-header">
+        <h1>📈 Analyse Univariée</h1>
+        <p>Distribution individuelle de chaque variable · EDS Cameroun 2018</p>
     </div>
     """, unsafe_allow_html=True)
 
     VARS_UNI = {
-        "v116": ("Type d'installation sanitaire", LABEL_V116),
-        "v113": ("Source d'eau potable", LABEL_V113),
-        "v130": ("Religion", LABEL_V130),
-        "v501": ("Statut matrimonial", LABEL_V501),
-        "v024": ("Région", LABEL_V024),
-        "v190": ("Quintile de richesse", LABEL_V190),
-        "v106": ("Niveau d'instruction", LABEL_V106),
-        "v463a": ("Fume des cigarettes", LABEL_V463A),
-        "age": ("Âge (Variable Numérique)", None),
+        "age":              ("Âge (continu)", "numérique"),
+        "sexe":             ("Sexe de la fratrie", "cat"),
+        "niveau_education": ("Niveau d'instruction", "cat"),
+        "indice_richesse":  ("Quintile de richesse", "cat"),
+        "region":           ("Région de résidence", "cat"),
+        "milieu_residence": ("Milieu de résidence", "cat"),
+        "etat_matrimonial": ("Statut matrimonial", "cat"),
     }
+    vars_dispo = {k: v for k, v in VARS_UNI.items() if k in df.columns}
 
     cs, cc = st.columns([1, 3])
     with cs:
-        var_code = st.radio("Variable à analyser", list(VARS_UNI.keys()), format_func=lambda k: VARS_UNI[k][0])
-        
-        if var_code == "age":
-            chart_type = st.selectbox("Type de graphique", ["Histogramme", "Boîte à moustaches"])
-        else:
-            chart_type = st.selectbox("Type de graphique", ["Barres", "Camembert"])
-        
-    with cc:
-        label, mapping = VARS_UNI[var_code]
-        
-        if var_code in df.columns:
-            if var_code == "age":
-                # Traitement spécifique pour la variable numérique (Âge)
-                if chart_type == "Histogramme":
-                    fig = px.histogram(df, x="age", nbins=30, color_discrete_sequence=["#3b82f6"], 
-                                       title="Distribution de l'âge", labels={"age": "Âge", "count": "Effectif"})
-                else:
-                    fig = px.box(df, x="age", color_discrete_sequence=["#3b82f6"], 
-                                 title="Boîte à moustaches · Âge", labels={"age": "Âge"})
-                fig.update_layout(**PL)
-                st.plotly_chart(fig, use_container_width=True)
-                
-                st.markdown('<div class="sh">📋 Statistiques descriptives</div>', unsafe_allow_html=True)
-                stats = df["age"].describe().to_frame().T
-                st.dataframe(stats, use_container_width=True, hide_index=True)
-                
-            else:
-                # Traitement pour les variables catégorielles (existant)
-                counts = df[var_code].map(mapping).value_counts().reset_index()
-                counts.columns = [label, "Effectif"]
-                
-                if chart_type == "Barres":
-                    fig = px.bar(counts, x=label, y="Effectif", color="Effectif",
-                                 color_continuous_scale=["#93c5fd", "#2563eb"], title=f"Distribution · {label}")
-                    fig.update_layout(**PL, coloraxis_showscale=False, xaxis_tickangle=-30)
-                else:
-                    fig = px.pie(counts, names=label, values="Effectif", hole=0.45,
-                                 color_discrete_sequence=px.colors.qualitative.Pastel, title=f"Distribution · {label}")
-                    fig.update_traces(textposition="inside", textinfo="percent+label")
-                    fig.update_layout(**PL)
-                    
-                st.plotly_chart(fig, use_container_width=True)
-                
-                st.markdown('<div class="sh">📋 Table des fréquences</div>', unsafe_allow_html=True)
-                counts["Pourcentage (%)"] = (counts["Effectif"] / counts["Effectif"].sum() * 100).round(2)
-                st.dataframe(counts, use_container_width=True, hide_index=True)
-        else:
-            st.warning(f"La variable `{var_code}` est absente du jeu de données.")
+        var_code = st.radio("Variable", list(vars_dispo.keys()),
+                            format_func=lambda k: vars_dispo[k][0])
+        label, vtype = vars_dispo[var_code]
+        chart_type = (st.selectbox("Graphique", ["Histogramme", "Boîte à moustaches"])
+                      if vtype == "numérique"
+                      else st.selectbox("Graphique", ["Barres horizontales", "Camembert"]))
 
-# ═══════════════════════════════════════════════
-# ANALYSE BIVARIÉE
-# ═══════════════════════════════════════════════
+    with cc:
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+        if vtype == "numérique":
+            if chart_type == "Histogramme":
+                fig = px.histogram(df, x=var_code, nbins=35, color_discrete_sequence=["#3b82f6"],
+                                   title=f"Distribution · {label}",
+                                   labels={var_code: label, "count": "Effectif"})
+            else:
+                fig = px.box(df, x=var_code, color_discrete_sequence=["#3b82f6"],
+                             title=f"Boîte à moustaches · {label}")
+            fig.update_layout(**PL)
+            st.plotly_chart(fig, use_container_width=True)
+            st.dataframe(df[var_code].describe().round(2).to_frame().T,
+                         use_container_width=True, hide_index=True)
+        else:
+            counts = df[var_code].value_counts().reset_index()
+            counts.columns = [label, "Effectif"]
+            counts["Pourcentage (%)"] = (counts["Effectif"] / counts["Effectif"].sum() * 100).round(2)
+            if chart_type == "Barres horizontales":
+                fig = px.bar(counts, x="Pourcentage (%)", y=label, orientation="h",
+                             color="Pourcentage (%)",
+                             color_continuous_scale=["#bfdbfe", "#1d4ed8"],
+                             title=f"Distribution · {label}")
+                fig.update_layout(**PL, coloraxis_showscale=False)
+            else:
+                fig = px.pie(counts, names=label, values="Effectif", hole=0.45,
+                             title=f"Distribution · {label}",
+                             color_discrete_sequence=px.colors.qualitative.Pastel)
+                fig.update_traces(textposition="inside", textinfo="percent+label")
+                fig.update_layout(**PL)
+            st.plotly_chart(fig, use_container_width=True)
+            st.dataframe(counts, use_container_width=True, hide_index=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PAGE : ANALYSE BIVARIÉE
+# ──────────────────────────────────────────────────────────────────────────────
 elif menu == "🔗 Analyse Bivariée":
     st.markdown("""
-    <div class="page-title-card">
-        <div class="page-title">🔗 Analyse Bivariée</div>
-        <div class="page-subtitle" style="color: #64748b;">Relation entre les variables et la mortalité adulte</div>
+    <div class="page-header">
+        <h1>🔗 Analyse Bivariée</h1>
+        <p>Association entre les variables et la mortalité adulte · Tests de Rao-Scott & Wald</p>
     </div>
     """, unsafe_allow_html=True)
 
     VARS_BIV = {
-        "v106": ("Niveau d'instruction", LABEL_V106),
-        "v190": ("Quintile de richesse", LABEL_V190),
-        "v024": ("Région", LABEL_V024),
-        "v501": ("Statut matrimonial", LABEL_V501),
-        "v130": ("Religion", LABEL_V130),
-        "v463a": ("Fume", LABEL_V463A),
-        "v113": ("Source d'eau", LABEL_V113),
-        "v116": ("Sanitaire", LABEL_V116),
-        "age": ("Âge (Variable Numérique)", None),
+        "age":              "Âge (numérique)",
+        "sexe":             "Sexe de la fratrie",
+        "niveau_education": "Niveau d'instruction",
+        "indice_richesse":  "Quintile de richesse",
+        "region":           "Région",
+        "milieu_residence": "Milieu de résidence",
+        "etat_matrimonial": "Statut matrimonial",
     }
+    vars_dispo_biv = {k: v for k, v in VARS_BIV.items() if k in df.columns}
 
     cs, cp = st.columns([1, 3])
     with cs:
-        var_x = st.radio("Sélectionner la variable", list(VARS_BIV.keys()), format_func=lambda k: VARS_BIV[k][0])
-        
+        var_x = st.radio("Variable", list(vars_dispo_biv.keys()),
+                         format_func=lambda k: vars_dispo_biv[k])
+        lbl = vars_dispo_biv[var_x]
         if var_x == "age":
-            chart_biv = st.selectbox("Visualisation", ["Histogramme croisé", "Boîte à moustaches", "Violin Plot"])
+            chart_biv = st.selectbox("Visualisation", ["Violin + boxplot", "Histogramme croisé"])
         else:
-            chart_biv = st.selectbox("Visualisation", ["Taux de mortalité", "Violin Plot", "Boîte à moustaches"])
-        
+            chart_biv = st.selectbox("Visualisation", ["Taux de mortalité", "Violin + boxplot"])
+
+    df_b = df.copy()
+    df_b["mort_label"] = df_b["mort_adulte"].map({0: "Vivant", 1: "Décès adulte"})
+
     with cp:
-        lbl, mp = VARS_BIV[var_x]
-        df_b = df.copy()
-        df_b["mort_label"] = df_b["mort_adulte"].map({0:"Vivant", 1:"Décédé"})
-        
+        st.markdown('<div class="chart-card">', unsafe_allow_html=True)
         if var_x == "age":
-            # Bivariée : Âge vs Mortalité Adulte
-            if chart_biv == "Histogramme croisé":
-                fig = px.histogram(df_b, x="age", color="mort_label", barmode="overlay", nbins=30,
-                                   color_discrete_map={"Vivant":"#3b82f6", "Décédé":"#ef4444"},
-                                   title="Distribution de l'âge selon le statut de survie",
-                                   labels={"age":"Âge", "mort_label":"Statut", "count":"Effectif"})
-                fig.update_layout(**PL, bargap=0.05)
-                
-            elif chart_biv == "Boîte à moustaches":
-                fig = px.box(df_b, x="mort_label", y="age", color="mort_label",
-                             color_discrete_map={"Vivant":"#3b82f6", "Décédé":"#ef4444"},
-                             title="Âge vs Statut de survie",
-                             labels={"mort_label":"Statut", "age":"Âge"})
-                fig.update_layout(**PL)
-                
-            else: # Violin Plot
+            if chart_biv == "Violin + boxplot":
                 fig = px.violin(df_b, x="mort_label", y="age", color="mort_label", box=True,
-                                color_discrete_map={"Vivant":"#3b82f6", "Décédé":"#ef4444"},
-                                title="Distribution de l'âge vs Statut de survie",
-                                labels={"mort_label":"Statut", "age":"Âge"})
-                fig.update_layout(**PL)
-            
+                                color_discrete_map={"Vivant": "#3b82f6", "Décès adulte": "#ef4444"},
+                                title="Distribution de l'âge selon le statut de survie",
+                                labels={"mort_label": "Statut", "age": "Âge (années)"})
+            else:
+                fig = px.histogram(df_b, x="age", color="mort_label", barmode="overlay", nbins=30,
+                                   color_discrete_map={"Vivant": "#3b82f6", "Décès adulte": "#ef4444"},
+                                   title="Histogramme croisé : Âge × Statut de survie")
+            fig.update_layout(**PL)
             st.plotly_chart(fig, use_container_width=True)
-            
         else:
-            # Bivariée : Variables catégorielles vs Mortalité Adulte (existant)
-            df_b["var_label"] = df_b[var_x].map(mp)
-            
             if chart_biv == "Taux de mortalité":
-                grp = df_b.groupby("var_label")["mort_adulte"].mean().mul(100).round(2).reset_index()
+                grp = (df_b.groupby(var_x)["mort_adulte"]
+                         .mean().mul(100).round(2).reset_index())
                 grp.columns = [lbl, "Taux (%)"]
                 grp = grp.sort_values("Taux (%)", ascending=False)
                 fig = px.bar(grp, x=lbl, y="Taux (%)", color="Taux (%)",
-                             color_continuous_scale=["#10b981", "#f59e0b", "#ef4444"], title=f"Taux de mortalité selon {lbl}")
+                             color_continuous_scale=["#10b981", "#f59e0b", "#ef4444"],
+                             title=f"Taux de mortalité adulte selon {lbl}")
                 fig.update_layout(**PL, coloraxis_showscale=False, xaxis_tickangle=-30)
-                
-            elif chart_biv == "Violin Plot":
-                fig = px.violin(df_b, x="var_label", y="age", color="mort_label", box=True,
-                                color_discrete_map={"Vivant":"#3b82f6", "Décédé":"#ef4444"},
-                                title=f"Distribution de l'âge vs {lbl}", labels={"var_label":lbl, "age":"Âge", "mort_label":"Statut"})
-                fig.update_layout(**PL, xaxis_tickangle=-30)
-                
             else:
-                fig = px.box(df_b, x="var_label", y="age", color="mort_label",
-                             color_discrete_map={"Vivant":"#3b82f6", "Décédé":"#ef4444"},
-                             title=f"Boîte à moustaches · {lbl}", labels={"var_label":lbl, "age":"Âge", "mort_label":"Statut"})
+                fig = px.violin(df_b, x=var_x, y="age", color="mort_label", box=True,
+                                color_discrete_map={"Vivant": "#3b82f6", "Décès adulte": "#ef4444"},
+                                title=f"Violin Plot · {lbl} × Âge × Statut",
+                                labels={var_x: lbl, "age": "Âge", "mort_label": "Statut"})
                 fig.update_layout(**PL, xaxis_tickangle=-30)
-                
             st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sh">🔥 Corrélation de Pearson avec la mortalité</div>', unsafe_allow_html=True)
-    num_cols = [c for c in ["age", "v106", "v190", "v024", "v501", "v130", "v463a", "v113", "v116", "mort_adulte"] if c in df.columns]
-    mort_corr = df[num_cols].corr()["mort_adulte"].drop("mort_adulte").sort_values()
-    
+    # Corrélations Spearman
+    st.markdown('<div class="section-title">🔥 Corrélations Spearman avec la mortalité</div>',
+                unsafe_allow_html=True)
+    num_encode = df[["mort_adulte"]].copy()
+    for c in ["age", "sexe", "niveau_education", "indice_richesse",
+              "region", "milieu_residence", "etat_matrimonial"]:
+        if c in df.columns:
+            if df[c].dtype == object or str(df[c].dtype) == "category":
+                num_encode[c] = pd.Categorical(df[c]).codes
+            else:
+                num_encode[c] = df[c]
+    corr_mort = num_encode.corr(method="spearman")["mort_adulte"].drop("mort_adulte").sort_values()
     fig_corr = go.Figure(go.Bar(
-        x=mort_corr.values, y=mort_corr.index, orientation="h",
-        marker=dict(color=mort_corr.values,
+        x=corr_mort.values, y=corr_mort.index, orientation="h",
+        marker=dict(color=corr_mort.values,
                     colorscale=[[0, "#ef4444"], [0.5, "#cbd5e1"], [1, "#10b981"]],
-                    cmin=-abs(mort_corr).max(), cmax=abs(mort_corr).max())))
-    
-    # Ajout du titre dans update_layout
-    fig_corr.update_layout(
-        **PL, 
-        height=350,
-        title="Niveau de corrélation avec la mortalité adulte" 
-    )
-    
+                    cmin=-abs(corr_mort).max(), cmax=abs(corr_mort).max())
+    ))
+    fig_corr.update_layout(**PL, height=300, title="Corrélation Spearman avec mort_adulte")
     st.plotly_chart(fig_corr, use_container_width=True)
 
-# ═══════════════════════════════════════════════
-# PRÉDICTION
-# ═══════════════════════════════════════════════
-elif menu == "🔮 Prédiction":
+# ──────────────────────────────────────────────────────────────────────────────
+# PAGE : RÉSULTATS ML
+# ──────────────────────────────────────────────────────────────────────────────
+elif menu == "🤖 Résultats ML":
     st.markdown("""
-    <div class="page-title-card">
-        <div class="page-title">🔮 Prédiction du Risque</div>
-        <div class="page-subtitle" style="color: #64748b;">Estimez la probabilité de décès adulte à partir d'un profil individuel grâce au Machine Learning.</div>
+    <div class="page-header">
+        <h1>🤖 Résultats Machine Learning</h1>
+        <p>Comparaison de 6 algorithmes · Cost-sensitive Learning · Validation croisée stratifiée (5-fold)</p>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.form("form_pred"):
-        st.markdown('<div class="fsec"><div class="fsec-title">👤 Informations démographiques</div></div>', unsafe_allow_html=True)
-        c1, c2, c3 = st.columns(3)
-        with c1: age = st.number_input("Âge", 15, 60, 30)
-        with c2: v501 = st.selectbox("Statut matrimonial", list(LABEL_V501.keys()), format_func=lambda x: LABEL_V501[x])
-        with c3: v024 = st.selectbox("Région", list(LABEL_V024.keys()), format_func=lambda x: LABEL_V024[x])
+    if artifacts:
+        st.markdown(f"""
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;
+                    padding:1rem 1.5rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:12px;">
+            <span style="font-size:2rem;">🏆</span>
+            <div>
+                <div style="font-size:0.8rem;font-weight:700;color:#64748b;text-transform:uppercase;">
+                    Modèle déployé
+                </div>
+                <div style="font-size:1.3rem;font-weight:800;color:#1d4ed8;">
+                    Meilleur modèle sélectionné · Seuil optimal = {seuil_optimal:.3f}
+                </div>
+            </div>
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.warning("⚠ Fichier `modele_mortalite_complet.joblib` introuvable. Placez-le dans le dossier de l'application.")
 
-        st.markdown('<div class="fsec"><div class="fsec-title">📚 Éducation & Économie</div></div>', unsafe_allow_html=True)
-        c4, c5 = st.columns(2)
-        with c4: v106 = st.selectbox("Niveau d'instruction", list(LABEL_V106.keys()), format_func=lambda x: LABEL_V106[x])
-        with c5: v190 = st.selectbox("Quintile de richesse", list(LABEL_V190.keys()), format_func=lambda x: LABEL_V190[x])
+    # Affichage des résultats CSV si disponible
+    for csv_path in ["outputs/tables/ML_05_comparaison_modeles.csv",
+                     "resultats_modeles.csv"]:
+        if Path(csv_path).exists():
+            df_ml = pd.read_csv(csv_path)
+            st.markdown('<div class="section-title">📊 Comparaison des modèles (5-Fold CV)</div>',
+                        unsafe_allow_html=True)
+            st.dataframe(df_ml, use_container_width=True)
+            break
+    else:
+        st.info("""
+        ℹ Les résultats détaillés de la comparaison des modèles ne sont pas disponibles.
+        Exécutez le notebook `2_Code_ML.ipynb` pour les générer dans `outputs/tables/`.
+        """)
 
-        st.markdown('<div class="fsec"><div class="fsec-title">🏠 Conditions de vie & Santé</div></div>', unsafe_allow_html=True)
-        c6, c7, c8, c9 = st.columns(4)
-        with c6: v130 = st.selectbox("Religion", list(LABEL_V130.keys()), format_func=lambda x: LABEL_V130[x])
-        with c7: v463a = st.selectbox("Fume ?", list(LABEL_V463A.keys()), format_func=lambda x: LABEL_V463A[x])
-        with c8: v113 = st.selectbox("Source d'eau", list(LABEL_V113.keys()), format_func=lambda x: LABEL_V113[x])
-        with c9: v116 = st.selectbox("Sanitaire", list(LABEL_V116.keys()), format_func=lambda x: LABEL_V116[x])
+    # Résumé méthodologique
+    st.markdown('<div class="section-title">📋 Résumé de la pipeline ML</div>', unsafe_allow_html=True)
+    methodo = pd.DataFrame({
+        "Étape": ["Feature Engineering", "Division des données", "Préprocesseur",
+                  "Modèles testés", "Validation croisée", "Critère de sélection",
+                  "Gestion déséquilibre", "Seuil de décision"],
+        "Détail": [
+            "Âge centré (age_centre), âge² (age_au_carre), interaction âge×sexe",
+            "80% train / 20% test · Stratification sur mort_adulte",
+            "StandardScaler (numérique) + OneHotEncoder drop='first' (catégoriel)",
+            "Régression Logistique, Random Forest, Extra Trees, Hist GBM, XGBoost, LightGBM",
+            "StratifiedKFold (5 folds, random_state=42)",
+            "ROC-AUC (maximisation) | F1-Score (indicatif)",
+            "class_weight='balanced' ou scale_pos_weight (ratio ~32:1)",
+            f"Seuil F1-optimal sur courbe ROC = {seuil_optimal:.3f}"
+        ]
+    })
+    st.dataframe(methodo, use_container_width=True, hide_index=True)
+
+# ──────────────────────────────────────────────────────────────────────────────
+# PAGE : PRÉDICTION
+# ──────────────────────────────────────────────────────────────────────────────
+elif menu == "🔮 Prédiction":
+    st.markdown("""
+    <div class="page-header">
+        <h1>🔮 Prédiction du Risque de Mortalité Adulte</h1>
+        <p>Estimez la probabilité de décès adulte à partir d'un profil socio-démographique individuel</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not artifacts:
+        st.error("⚠️ Modèle non chargé. Veuillez placer `modele_mortalite_complet.joblib` dans le dossier de l'application.")
+        st.stop()
+
+    st.markdown(f"""
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;
+                padding:.8rem 1.2rem;margin-bottom:1rem;font-size:.9rem;color:#166534;">
+        <strong>ℹ️ Note scientifique :</strong> Les probabilités sont issues d'un pipeline de 
+        <span class="model-badge">Cost-Sensitive Learning</span> entraîné sur 
+        l'EDS Cameroun 2018 (méthode CSS). Seuil de décision optimal : 
+        <strong>{seuil_optimal:.3f}</strong> (maximisation du F1-Score).
+    </div>
+    """, unsafe_allow_html=True)
+
+    # 1. OPTIONS ALIGNÉES STRICTEMENT SUR LES LABELS DE L'ENTRAÎNEMENT EDS 2018
+    SEXE_OPTS_EDS     = ["Masculin", "Féminin"]
+    MILIEU_OPTS_EDS   = ["Urbain", "Rural"]
+    EDUC_OPTS_EDS     = ["Aucun", "Primaire", "Secondaire", "Supérieur"]
+    RICHESSE_OPTS_EDS = ["Très pauvre", "Pauvre", "Moyen", "Riche", "Très riche"]
+    MATRI_OPTS_EDS    = ["Jamais en union", "Marié(e)", "En concubinage", "Veuf/Veuve", "Divorcé(e)", "Séparé(e)"]
+    REGION_OPTS_EDS   = ["Adamaoua", "Centre (hors Ydé)", "Douala", "Est", "Extrême-Nord", 
+                         "Littoral (hors Dla)", "Nord", "Nord-Ouest", "Ouest", "Sud", "Sud-Ouest", "Yaoundé"]
+
+    # Formulaire de saisie utilisateur
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        age = st.number_input("Âge de l'individu (années)", min_value=15, max_value=59, value=30, step=1)
+        sexe = st.selectbox("Sexe", SEXE_OPTS_EDS)
+        milieu_residence = st.selectbox("Milieu de résidence", MILIEU_OPTS_EDS)
+
+    with col2:
+        niveau_education = st.selectbox("Niveau d'instruction", EDUC_OPTS_EDS)
+        indice_richesse  = st.selectbox("Indice de richesse", RICHESSE_OPTS_EDS)
+        etat_matrimonial = st.selectbox("État matrimonial", MATRI_OPTS_EDS)
+
+    with col3:
+        region = st.selectbox("Région de résidence", REGION_OPTS_EDS)
+
+    st.markdown("---")
+    if st.button("🚀 Calculer le risque de mortalité", use_container_width=True):
+
+        # 2. FEATURE ENGINEERING NUMÉRIQUE
+        age_centre          = age - age_moyen_train
+        age_au_carre        = age_centre ** 2
+        is_masculin         = 1 if sexe == "Masculin" else 0
+        interaction_age_sexe = age_centre * is_masculin
+
+        # ++++ CORRECTION : CRÉATION DES DICTIONNAIRES INVERSES ++++
+        # Cela permet de retrouver le code (ex: "1") à partir du label (ex: "Très pauvre")
+        REV_LABEL_V190 = {v: str(k) for k, v in LABEL_V190.items()}
+        REV_LABEL_V106 = {v: str(k) for k, v in LABEL_V106.items()}
+        REV_LABEL_V024 = {v: str(k) for k, v in LABEL_V024.items()}
+        REV_LABEL_V025 = {v: str(k) for k, v in LABEL_V025.items()}
+        REV_LABEL_V501 = {v: str(k) for k, v in LABEL_V501.items()}
+        REV_SEXE       = {"Masculin": "1", "Féminin": "2"}
+        # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+        # 3. CONSTRUCTION DE L'ÉCOSYSTÈME DE COLONNES UNIVERSEL (Gère courts, longs et bruts)
+        dictionnaire_universel = {
+            # Formats de variables courts
+            'age': age, 'age_ref': age,
+            'sexe': REV_SEXE[sexe], 
+            'milieu_residence': REV_LABEL_V025[milieu_residence],
+            'niveau_education': REV_LABEL_V106[niveau_education], 
+            'indice_richesse': REV_LABEL_V190[indice_richesse],
+            'etat_matrimonial': REV_LABEL_V501[etat_matrimonial], 
+            'region': REV_LABEL_V024[region],
+            
+            # Formats de variables longs (lbl_) issus du CSV original
+            'lbl_sexe': REV_SEXE[sexe], 
+            'lbl_milieu': REV_LABEL_V025[milieu_residence],
+            'lbl_instruction': REV_LABEL_V106[niveau_education], 
+            'lbl_richesse': REV_LABEL_V190[indice_richesse],
+            'lbl_matrimonial': REV_LABEL_V501[etat_matrimonial], 
+            'lbl_region': REV_LABEL_V024[region],
+            
+            # Indicateurs calculés
+            'age_centre': age_centre,
+            'age_au_carre': age_au_carre,
+            'interaction_age_sexe': interaction_age_sexe
+        }
         
-        st.write("")
-        submitted = st.form_submit_button("🔍 Calculer le risque de mortalité")
+        donnees_saisie = pd.DataFrame([dictionnaire_universel])
 
-    if submitted:
-        if modele is not None:
-            # 1. Création du DataFrame d'entrée
-            input_df = pd.DataFrame([{"age":age, "v106":v106, "v190":v190, "v024":v024,
-                                       "v501":v501, "v130":v130, "v463a":v463a, "v113":v113, "v116":v116}])
-            
-            # 2. Transformation pour correspondre au modèle (Indispensable !)
-            input_preprocessed = transformer_input(input_df)
-            
-            # 3. Prédiction
-            pct = modele.predict_proba(input_preprocessed)[0][1] * 100
+        # 4. ALIGNEMENT ET RÉORDONNANCEMENT DYNAMIQUE VIA LES MÉTADONNÉES DU MODÈLE
+        colonnes_ordonnees = None
+        
+        # Vérification standard des variables d'entrée mémorisées par Scikit-Learn
+        if hasattr(pipeline, 'feature_names_in_'):
+            colonnes_ordonnees = list(pipeline.feature_names_in_)
+        
+        # Alternative : Extraction via la configuration interne du ColumnTransformer
+        elif hasattr(pipeline, 'named_steps') and 'preprocessor' in pipeline.named_steps:
+            prep = pipeline.named_steps['preprocessor']
+            if hasattr(prep, 'transformers_'):
+                list_cols = []
+                for name, trans, cols in prep.transformers_:
+                    if name != 'remainder':
+                        list_cols.extend(cols)
+                if list_cols:
+                    colonnes_ordonnees = list_cols
+
+        # Restructuration stricte du DataFrame si les métadonnées de l'entraînement existent
+        if colonnes_ordonnees:
+            for col in colonnes_ordonnees:
+                if col not in donnees_saisie.columns:
+                    donnees_saisie[col] = 0  # Sécurité structurelle
+            donnees_saisie = donnees_saisie[colonnes_ordonnees]
+
+        # 5. CONVERSION DES TYPES POUR LE PIPELINE
+        for col in donnees_saisie.columns:
+            if donnees_saisie[col].dtype == object or str(donnees_saisie[col].dtype) == 'category':
+                donnees_saisie[col] = donnees_saisie[col].astype(str)
+
+        # 6. ENCAPSULATION DE SÉCURITÉ ET EXÉCUTION
+        try:
+            probabilite_deces = pipeline.predict_proba(donnees_saisie)[0, 1]
+        except Exception as e:
+            st.error(f"Erreur lors de la prédiction : {e}")
+            st.stop()
+
+        # 7. STRATIFICATION DES NIVEAUX DE RISQUE
+        pct = probabilite_deces * 100
+        seuil_bas = 0.450
+        
+        if probabilite_deces < seuil_bas:
+            cls = "low"
+            label_risque = "Risque Faible"
+            ico = "✅"
+        elif seuil_bas <= probabilite_deces < seuil_optimal:
+            cls = "med"
+            label_risque = "Risque Modéré"
+            ico = "⚠️"
         else:
-            pct = 18.5
+            cls = "high"
+            label_risque = "Risque Élevé"
+            ico = "🚨"
 
-        if pct < 10:
-            rc, rtxt, rico = "low", "Risque Faible", "✅"
-        elif pct < 25:
-            rc, rtxt, rico = "med", "Risque Modéré", "⚠️"
-        else:
-            rc, rtxt, rico = "high", "Risque Élevé", "🚨"
-
-        st.markdown('<div class="sh">Résultat de l\'analyse</div>', unsafe_allow_html=True)
+        # 8. RESTITUTION VISUELLE DES INDICES DE RISQUE
+        st.write("### 📊 Résultat de l'analyse prédictive")
         r1, r2 = st.columns([1, 2])
         
         with r1:
             st.markdown(f"""
-            <div class="rc {rc}">
-                <div class="rc-ico">{rico}</div>
-                <div class="rc-val">{pct:.1f}%</div>
-                <div class="rc-lbl">{rtxt}</div>
-                <div style="font-size:0.85rem; color:var(--muted); margin-top:0.5rem;">Probabilité de décès estimée</div>
+            <div class="result-card {cls}">
+                <div style="font-size: 2.5rem;">{ico}</div>
+                <div class="result-val">{probabilite_deces:.2%}</div>
+                <div class="result-lbl">{label_risque}</div>
+                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 1rem;">
+                    Seuil d'alerte critique : {seuil_optimal:.1%}
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
         with r2:
-            bc = "#ef4444" if rc=="high" else "#f59e0b" if rc=="med" else "#10b981"
-            fig_g = go.Figure(go.Indicator(
-                mode="gauge+number", value=pct,
-                number={"suffix":"%", "font":{"size":40, "color":"#0f172a"}},
-                gauge={
-                    "axis": {"range": [0, 100], "tickcolor": "#cbd5e1"},
-                    "bar": {"color": bc, "thickness": 0.25},
-                    "bgcolor": "rgba(0,0,0,0)",
-                    "borderwidth": 0,
-                    "steps": [
-                        {"range": [0, 10], "color": "rgba(16, 185, 129, 0.15)"},
-                        {"range": [10, 25], "color": "rgba(245, 158, 11, 0.15)"},
-                        {"range": [25, 100], "color": "rgba(239, 68, 68, 0.15)"}
-                    ],
-                    "threshold": {"line": {"color": "#0f172a", "width": 3}, "thickness": 0.75, "value": pct}
-                }
-            ))
-            fig_g.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                                height=280, margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig_g, use_container_width=True)
-        st.markdown('<div class="sh">🧩 Profil du sujet</div>', unsafe_allow_html=True)
-        profile = {"Variable":["Âge","Région","Niveau d'instruction","Quintile de richesse",
-                                "Statut matrimonial","Religion","Fumeur","Source d'eau","Sanitaire"],
-                   "Valeur":[f"{age} ans",LABEL_V024[v024],LABEL_V106[v106],LABEL_V190[v190],
-                             LABEL_V501[v501],LABEL_V130[v130],LABEL_V463A[v463a],
-                             LABEL_V113[v113],LABEL_V116[v116]]}
-        st.dataframe(pd.DataFrame(profile), use_container_width=True, hide_index=True)
+            st.markdown(f"""
+            <div style="background: white; padding: 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); height: 100%;">
+                <h4 style="margin-top: 0; color: var(--text); font-weight:700;">📋 Évaluation Multivariée du Profil</h4>
+                <p style="font-size: 0.95rem; color: #334155; margin-bottom: 0.8rem;">
+                    L'analyse du profil pour cet individu de <strong>{age} ans</strong> ({sexe}) résidant en milieu 
+                    <strong>{milieu_residence}</strong> (Région : <strong>{region}</strong>) indique :
+                </p>
+                <ul style="font-size: 0.9rem; color: #475569; padding-left: 1.2rem; line-height: 1.6;">
+                    <li><strong>Composante Biologique :</strong> L'évolution du risque intègre l'âge centré et la dynamique d'interaction liée au genre masculin/féminin.</li>
+                    <li><strong>Pondération Structurelle :</strong> Le niveau d'instruction (<em>{niveau_education}</em>) associé au niveau de richesse (<em>{indice_richesse}</em>) est maintenant correctement mappé et applique son poids factoriel complet.</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════
-# À PROPOS
-# ═══════════════════════════════════════════════
+        # 9. MODULE D'INSPECTION (Débuggage visible en cas de doute)
+        with st.expander("🔍 Inspecteur de Alignement ML (Debug App)") :
+            st.write("**Colonnes actuellement transmises au modèle :**", list(donnees_saisie.columns))
+            st.write("**Valeurs associées :**")
+            st.dataframe(donnees_saisie)
+            if colonnes_ordonnees:
+                st.write("**Ordre strict détecté depuis le fichier d'entraînement :**", colonnes_ordonnees)
+# ──────────────────────────────────────────────────────────────────────────────
+# PAGE : À PROPOS
+# ──────────────────────────────────────────────────────────────────────────────
 elif menu == "👤 À propos":
     st.markdown("""
-    <div class="page-title-card">
-        <div class="page-title">👤 À propos du projet</div>
-        <div class="page-subtitle" style="color: #64748b;">Auteur & Contexte académique</div>
+    <div class="page-header">
+        <h1>👤 À propos du projet</h1>
+        <p>Auteur · Contexte académique · Méthodologie complète</p>
     </div>
     """, unsafe_allow_html=True)
 
     col_img, col_info = st.columns([1, 2.5])
-
     with col_img:
-        try:
-            st.image("photo_auteur.jpeg", width=600)
-        except Exception:
+        if Path("photo_auteur.jpeg").exists():
+            st.image("photo_auteur.jpeg", width=250)
+        else:
             st.markdown("""
-            <div style="background:#f1f5f9; border:2px dashed #cbd5e1; border-radius:20px; 
-                        height:280px; display:flex; align-items:center; justify-content:center; font-size:6rem;">
-                👤
-            </div>
-            """, unsafe_allow_html=True)
+            <div style="background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:20px;
+                        height:250px;display:flex;align-items:center;justify-content:center;
+                        font-size:5rem;">👤</div>""", unsafe_allow_html=True)
 
     with col_info:
         st.markdown("""
-        <div style="font-size:2rem; font-weight:800; color:#1d4ed8; margin-bottom:0.2rem;">
+        <div style="font-size:2rem;font-weight:800;color:#1d4ed8;margin-bottom:.2rem;">
             NJONKOU TONDA JOEL
         </div>
-        <div style="font-size:1rem; font-weight:600; color:#64748b; margin-bottom:2rem;">
-            Étudiant en Master 1 Data Science
+        <div style="font-size:1rem;font-weight:600;color:#64748b;margin-bottom:1.5rem;">
+            Étudiant en Master 1 · Data Science & Statistiques
         </div>
         """, unsafe_allow_html=True)
 
-        fields = [
-            ("🎯 Thème", "Déterminants de la mortalité adulte au Cameroun via les données EDS 2018"),
-            ("📚 Cours", "Statistique Multivariée"),
-            ("🗄️ Données", "Enquête Démographique et de Santé (EDS) Cameroun 2018"),
-            ("🤖 Méthode", "Modèle supervisé de classification · Machine Learning"),
-        ]
-        
-        for key, val in fields:
+        for key, val in [
+            ("🎯 Thème",         "Déterminants de la mortalité adulte au Cameroun — EDS 2018"),
+            ("📚 Cours",          "Statistique Multivariée & Machine Learning"),
+            ("🗄️ Données",       "Enquête Démographique et de Santé (EDS) Cameroun 2018"),
+            ("🔬 Méthode Stats", "Plan de sondage complexe · Régression logistique · OR · Test Rao-Scott"),
+            ("🤖 Méthode ML",    "6 modèles · Cost-sensitive Learning · SHAP · Seuil optimal F1"),
+            ("📅 Date",           "Juin 2026"),
+        ]:
             st.markdown(f"""
-            <div style="display:flex; margin-bottom:1rem; border-bottom:1px solid #f1f5f9; padding-bottom:0.5rem;">
-                <div style="width:130px; font-size:0.85rem; font-weight:700; color:#3b82f6; text-transform:uppercase;">
-                    {key}
-                </div>
-                <div style="flex:1; font-size:1rem; color:#0f172a; font-weight:500;">
-                    {val}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            <div style="display:flex;margin-bottom:.8rem;border-bottom:1px solid #f1f5f9;padding-bottom:.5rem;">
+                <div style="width:170px;font-size:.82rem;font-weight:700;color:#3b82f6;text-transform:uppercase;">{key}</div>
+                <div style="font-size:.9rem;color:#0f172a;">{val}</div>
+            </div>""", unsafe_allow_html=True)
 
-        st.markdown("""
-        <p style="font-size:0.95rem; line-height:1.7; color:#475569; margin-top:1.5rem; background:#eff6ff; padding:1rem; border-radius:12px; border-left:4px solid #3b82f6;">
-            Ce projet vise à identifier les déterminants socio-économiques et environnementaux influençant la mortalité adulte au Cameroun. 
-            Il combine une analyse exploratoire approfondie et un simulateur de risque individuel fondé sur un modèle d'apprentissage automatique.
-        </p>
-        """, unsafe_allow_html=True)
+    st.markdown('<div class="section-title">📖 Pipeline méthodologique complète</div>', unsafe_allow_html=True)
+    st.markdown("""
+    | Étape | Détail |
+    |-------|--------|
+    | **Données sources** | CMIR71FL.sav — EDS Cameroun 2018 (femmes 15-49 ans) |
+    | **Variable cible** | Méthode CSS (Obermeyer et al.) : vivant=0 ∩ âge_décès∈[15,59] ∩ délai≤7 ans |
+    | **Format long** | Restructuration wide→long par fratrie (pivot_longer sur mm1…mm20) |
+    | **Calculs CMC** | Âge au décès = (deces_cmc − naiss_cmc) / 12 |
+    | **Plan de sondage** | PSU (v021), Strates (v022), Poids (v005/1e6) |
+    | **Tests bivariés** | Chi² de Rao-Scott (catégorielles), seuil p < 0.20 |
+    | **Régression stats** | svyglm (quasibinomial) — Odds Ratios ajustés + Forest Plot |
+    | **Feature Engineering** | Âge centré, âge², interaction âge×sexe |
+    | **Préprocesseur** | StandardScaler + OneHotEncoder (drop='first') |
+    | **Modèles ML** | Logistic Reg., Random Forest, Extra Trees, Hist GBM, XGBoost, LightGBM |
+    | **Validation** | StratifiedKFold (5 folds) — critère AUC |
+    | **Gestion déséquilibre** | class_weight='balanced' / scale_pos_weight (ratio ~32:1) |
+    | **Seuil optimal** | Maximisation F1-Score sur courbe ROC du jeu de test |
+    | **Explicabilité** | SHAP — LinearExplainer sur le meilleur modèle |
+    """)
