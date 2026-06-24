@@ -22,14 +22,10 @@ if 'historique_pred' not in st.session_state:
 def charger_modele():
     chemin_modele = "pipeline_mortalite_gb.joblib"
     if not os.path.exists(chemin_modele):
-        st.error(f"❌ Le fichier du modèle est introuvable au chemin : {chemin_modele}.")
+        st.error(f"❌ Le fichier du modèle est introuvable au chemin : {chemin_modele}. "
+                 "Veuillez exécuter la dernière cellule de votre notebook.")
         return None
-    try:
-        return joblib.load(chemin_modele)
-    except Exception as e:
-        st.error("🚨 **Alerte Débug : Voici le nouveau module qui bloque :**")
-        st.exception(e)  # Force l'affichage du message réel
-        return None
+    return joblib.load(chemin_modele)
 
 artifacts = charger_modele()
 
