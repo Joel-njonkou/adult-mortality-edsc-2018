@@ -19,18 +19,13 @@ if 'historique_pred' not in st.session_state:
 
 # 3. Chargement du modèle mis en cache
 @st.cache_resource
-@st.cache_resource
 def charger_modele():
     chemin_modele = "pipeline_mortalite_gb.joblib"
     if not os.path.exists(chemin_modele):
-        st.error(f"❌ Le fichier du modèle est introuvable au chemin : {chemin_modele}.")
+        st.error(f"❌ Le fichier du modèle est introuvable au chemin : {chemin_modele}. "
+                 "Veuillez exécuter la dernière cellule de votre notebook.")
         return None
-    try:
-        return joblib.load(chemin_modele)
-    except Exception as e:
-        st.error("🚨 **Alerte Débug : Voici le module qui bloque l'application :**")
-        st.exception(e)  # Force l'affichage du vrai message d'erreur non censuré
-        return None
+    return joblib.load(chemin_modele)
 
 artifacts = charger_modele()
 
